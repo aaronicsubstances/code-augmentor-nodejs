@@ -1,0 +1,19 @@
+{
+  "name": "code-augmentor-support",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "keywords": [],
+  "author": "Aaron Baffour-Awuah <aaronbaffourawuah@gmail.com> (https://github.com/aaronicsubstances)",
+  "license": "MIT",
+  "dependencies": {
+    "line-reader": "^0.4.0"
+  },
+  "devDependencies": {
+    "mocha": "^7.1.1",
+    "rimraf": "^3.0.2"
+  }
+}
