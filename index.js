@@ -175,7 +175,17 @@ function processAugCode(evalFunction, functionName, augCode, context,
         let converted = [];
         if (Array.isArray(result)) {
             for (item of result) {
-                converted.push(convertGenCodeItem(item));
+                let genCode = convertGenCodeItem(item);
+                converted.push(genCode);
+                // try and mark corresponding aug code as processed.
+                if (genCode.id > 0) {
+                    let correspondingAugCodes = 
+                        context.fileAugCodes.augmentingCodes
+                            .filter(x => x.id == genCode.id);
+                    if (correspondingAugCodes.length > 0) {
+                        correspondingAugCodes[0].processed = true;
+                    }
+                }
             }
         }
         else {
@@ -226,14 +236,16 @@ function convertGenCodeItem(item) {
 
 function validateGeneratedCodeIds(fileGenCodeList, context, allErrors) {
     let ids = fileGenCodeList.map(x => x.id);
-    if (ids.filter(x => x <= 0).length > 0) {
+    // Interpret use of -1 or negatives as intentional and skip
+    // validating negative ids.
+    if (ids.filter(x => !x).length > 0) {
         createException(context, 'At least one generated code id was not set. Found: ' + ids,
             null, allErrors);
     }
     else {
-        let duplicateIds = ids.filter(x => ids.filter(y => x == y).length > 1);
+        let duplicateIds = ids.filter(x => x > 0 && ids.filter(y => x == y).length > 1);
         if (duplicateIds.length > 0) {
-            createException(context, 'Generated code ids must be unique, but found duplicates: ' + ids,
+            createException(context, 'Valid generated code ids must be unique, but found duplicates: ' + ids,
                 null, allErrors);
         }
     }
