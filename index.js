@@ -2,38 +2,6 @@ const fs = require('fs');
 const readline = require('readline');
 const path = require('path');
 
-/*
-const yargs = require('yargs');
-const argv = yargs
-    .option('input-path', {
-        alias: 'i',
-        description: 'Input file with augmenting code',
-        type: 'string',
-    })
-    .nargs('input-path', 1)
-    .option('output-path', {
-        alias: 'o',
-        description: 'Output file for generated code',
-        type: 'string',
-    })
-    .nargs('output-path', 1)
-    .demandOption(["input-path", "output-path"])
-    .help()
-    .alias('help', 'h')
-    .argv;*/
-
-/*const FUNCTION_NAME_REGEX = /^((yestest)\.)[a-zA-Z]\w*$/;
-function callUserFunction(functionName, augCode, context) {
-    // validate name.
-    if (!FUNCTION_NAME_REGEX.test(functionName)) {
-        throw new Error("Invalid/Unsupported function name: " + functionName);
-    }
-
-    // name is valid. make function call "dynamically".
-    const result = eval(functionName + "(augCode, context)");
-    return result;
-}*/
-
 exports.execute = function(config, evalFunction, cb=null) {
     // set defaults for logging
     if (!config.logVerbose) {
@@ -56,9 +24,12 @@ exports.execute = function(config, evalFunction, cb=null) {
     config.allErrors = [];
         
     // ensure dir exists for outputFile.
-    fs.mkdirSync(path.dirname(config.outputFile), {
-        recursive: true // also ensures no error is thrown if dir already exists
-    });
+    const outputDir = path.dirname(config.outputFile)
+    if (outputDir) {
+        fs.mkdirSync(outputDir, {
+            recursive: true // also ensures no error is thrown if dir already exists
+        });
+    }
 
     const context = {
         globalScope: {},

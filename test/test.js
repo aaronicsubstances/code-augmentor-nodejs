@@ -1,5 +1,4 @@
 const assert = require('assert').strict;
-const fs = require('fs');
 const path = require('path');
 
 const rimraf = require('rimraf');
@@ -9,11 +8,22 @@ const codeaugmentor_support = require('../index.js');
 
 let buildDir = path.join(tempDirectory, "code-augmentor-support-nodejs");
 
+/**
+ * Main purpose of tests in this project is to test
+ * error cases and the formatting of thrown exceptions.
+ * More thorough testing of success case scenerios is dealt with outside this
+ * project.
+ */
+
 describe('codeaugmentor_support', function() {
     it('should execute basic usage successfully', function(done) {
+        // test that output dir can be recreated if absent.
+        // do this only here, so subsequent tests verify that
+        // existing output dir can be used successfully.
+        rimraf.sync(buildDir);
         const config = {
-            inputFile: path.join(__dirname, 'basic_usage_aug_codes.json'),
-            outputFile: path.join(buildDir, 'basic_usage_gen_codes-00.json'),
+            inputFile: path.join(__dirname, 'resources', 'aug_codes-00.json'),
+            outputFile: path.join(buildDir, 'actual_gen_codes.json'),
             verbose: true
         };
         
@@ -26,26 +36,44 @@ describe('codeaugmentor_support', function() {
 });
 
 describe('codeaugmentor_support', function() {
-    it('should execute usage with array result successfully', function(done) {
+    it('should fail due to unset ids', function(done) {
         const config = {
-            inputFile: path.join(__dirname, 'basic_usage_aug_codes.json'),
-            outputFile: path.join(buildDir, 'basic_usage_gen_codes-01.json'),
+            inputFile: path.join(__dirname, 'resources', 'aug_codes-00.json'),
+            outputFile: path.join(buildDir, 'genCodes-js-ignore.json'),
             verbose: true
         };
         
-        codeaugmentor_support.execute(config, evalerWithArrayReturnResult, function(err) {
+        codeaugmentor_support.execute(config, evalerProducingUnsetIds, function(err) {
             done(err);
             printErrors(config);
-            assert.ok(!config.allErrors.length);
+            assert.equal(config.allErrors.length, 2);
+            console.log(`Expected ${config.allErrors.length} error(s)`);
         });
     });
 });
 
 describe('codeaugmentor_support', function() {
-    it('should execute basic eval exception successfully', function(done) {
+    it('should fail due to duplicate ids', function(done) {
         const config = {
-            inputFile: path.join(__dirname, 'basic_usage_aug_codes.json'),
-            outputFile: path.join(buildDir, 'basic_usage_gen_codes-02.json'),
+            inputFile: path.join(__dirname, 'resources', 'aug_codes-01.json'),
+            outputFile: path.join(buildDir, 'genCodes-js-ignore.json'),
+            verbose: true
+        };
+        
+        codeaugmentor_support.execute(config, evalerProducingDuplicateIds, function(err) {
+            done(err);
+            printErrors(config);
+            assert.equal(config.allErrors.length, 1);
+            console.log(`Expected ${config.allErrors.length} error(s)`);
+        });
+    });
+});
+
+describe('codeaugmentor_support', function() {
+    it('should fail due to absence of production usage context', function(done) {
+        const config = {
+            inputFile: path.join(__dirname, 'resources', 'aug_codes-01.json'),
+            outputFile: path.join(buildDir, 'genCodes-js-ignore.json'),
             verbose: true
         };
         
@@ -69,9 +97,16 @@ function evaler(functionName, augCode, context) {
     return `Received: ${functionName}: ${augCode}, ${context}`;
 }
 
-function evalerWithArrayReturnResult(functionName, augCode, context) {
+function evalerProducingUnsetIds(functionName, augCode, context) {
     let genCode = context.newGenCode();
-    genCode.id = augCode.id;
+    //genCode.id = augCode.id;
+    genCode.contentParts.push(context.newContent(`Received: ${functionName}`));
+    return [ genCode ];
+}
+
+function evalerProducingDuplicateIds(functionName, augCode, context) {
+    let genCode = context.newGenCode();
+    genCode.id = 1;
     genCode.contentParts.push(context.newContent(`Received: ${functionName}`));
     return [ genCode ];
 }
