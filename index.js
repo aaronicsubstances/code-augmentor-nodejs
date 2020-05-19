@@ -1,7 +1,6 @@
 const fs = require('fs');
+const readline = require('readline');
 const path = require('path');
-
-const lineReader = require('line-reader');
 
 /*
 const yargs = require('yargs');
@@ -81,89 +80,90 @@ exports.execute = function(config, evalFunction, cb=null) {
     codeGenResponse.write(JSON.stringify({}, '') + '\n');
 
     // begin reading input file.
-    let headerSeen = false;
-    lineReader.eachLine(config.inputFile, function(line, last) {
-        // begin deserialize by reading header from input
-        if (!headerSeen) {
-            context.header = JSON.parse(line);
-            headerSeen = true;
-            return;
-        }
-        
-        let fileAugCodes = JSON.parse(line);
+    try {
+        let headerSeen = false;
+        const rl = readline.createInterface({
+            input: fs.createReadStream(config.inputFile),
+            crlfDelay: Infinity
+        });
+        rl.on('line', (line) => {
+            // begin deserialize by reading header from input
+            if (!headerSeen) {
+                context.header = JSON.parse(line);
+                headerSeen = true;
+                return;
+            }
+            
+            let fileAugCodes = JSON.parse(line);
 
-        // set up context.
-        context.srcFile = path.join(fileAugCodes.dir,
-            fileAugCodes.relativePath);
-        context.fileAugCodes = fileAugCodes;
-        context.fileScope = {};
-        config.logVerbose(`Processing ${context.srcFile}`);
+            // set up context.
+            context.srcFile = path.join(fileAugCodes.dir,
+                fileAugCodes.relativePath);
+            context.fileAugCodes = fileAugCodes;
+            context.fileScope = {};
+            config.logVerbose(`Processing ${context.srcFile}`);
 
-        // fetch arguments, and parse any json argument found.
-        for (augCode of fileAugCodes.augmentingCodes) {
-            augCode.processed = false;
-            augCode.args = [];
-            for (block of augCode.blocks) {
-                if (block.jsonify) {
-                    const parsedArg = JSON.parse(block.content);
-                    augCode.args.push(parsedArg);
+            // fetch arguments, and parse any json argument found.
+            for (augCode of fileAugCodes.augmentingCodes) {
+                augCode.processed = false;
+                augCode.args = [];
+                for (block of augCode.blocks) {
+                    if (block.jsonify) {
+                        const parsedArg = JSON.parse(block.content);
+                        augCode.args.push(parsedArg);
+                    }
+                    else if (block.stringify) {
+                        augCode.args.push(block.content);
+                    }
                 }
-                else if (block.stringify) {
-                    augCode.args.push(block.content);
+            }
+            
+            // now begin aug code processing.
+            const fileGenCodes = { 
+                fileId: fileAugCodes.fileId,
+                generatedCodes: []
+            };
+            const beginErrorCount = config.allErrors.length;
+            for (let i = 0; i < fileAugCodes.augmentingCodes.length; i++) {
+                const augCode = fileAugCodes.augmentingCodes[i];
+                if (augCode.processed) {
+                    continue;
+                }
+
+                context.augCodeIndex = i;
+                const functionName = augCode.blocks[0].content.trim();
+                const genCodes = processAugCode(evalFunction, functionName,
+                    augCode, context, config.allErrors);
+                for (genCode of genCodes) {
+                    fileGenCodes.generatedCodes.push(genCode);
                 }
             }
-        }
-        
-        // now begin aug code processing.
-        const fileGenCodes = { 
-            fileId: fileAugCodes.fileId,
-            generatedCodes: []
-        };
-        const beginErrorCount = config.allErrors.length;
-        for (let i = 0; i < fileAugCodes.augmentingCodes.length; i++) {
-            const augCode = fileAugCodes.augmentingCodes[i];
-            if (augCode.processed) {
-                continue;
-            }
+                        
+            validateGeneratedCodeIds(fileGenCodes.generatedCodes, context, config.allErrors);
+            
+            if (config.allErrors.length > beginErrorCount) {
+                config.logWarn((config.allErrors.length - beginErrorCount) +
+                    " error(s) encountered in " + context.srcFile);
+            }            
 
-            context.augCodeIndex = i;
-            const functionName = augCode.blocks[0].content.trim();
-            const genCodes = processAugCode(evalFunction, functionName,
-                augCode, context, config.allErrors);
-            for (genCode of genCodes) {
-                fileGenCodes.generatedCodes.push(genCode);
+            if (config.allErrors.length == 0) {
+                codeGenResponse.write(JSON.stringify(fileGenCodes, '') + '\n');
             }
-        }
-                    
-        validateGeneratedCodeIds(fileGenCodes.generatedCodes, context, config.allErrors);
-        
-        if (config.allErrors.length > beginErrorCount) {
-            config.logWarn((config.allErrors.length - beginErrorCount) +
-                " error(s) encountered in " + context.srcFile);
-        }            
-
-        if (config.allErrors.length == 0) {
-            codeGenResponse.write(JSON.stringify(fileGenCodes, '') + '\n');
-        }
-        config.logInfo("Done processing " + context.srcFile);
-        if (last) {
+            config.logInfo("Done processing " + context.srcFile);
+        }).on('close', () => {
             codeGenResponse.end();
-        }
-    }, function(err) {
-        // completion function.
-        if (err) {
-            if (!cb) {
-                throw err;
-            }
+            cb && cb();
+        });
+    }
+    catch (err) {
+        if (cb) {
             cb(err);
         }
         else {
-            if (cb) {
-                cb();
-            }
+            throw err;
         }
-    });
-}
+    }
+};
 
 function processAugCode(evalFunction, functionName, augCode, context,
         allErrors) {
