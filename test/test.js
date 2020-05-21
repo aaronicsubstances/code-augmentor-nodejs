@@ -86,6 +86,23 @@ describe('codeaugmentor_support', function() {
     });
 });
 
+describe('codeaugmentor_support', function() {
+    it('should fail due to missing evaler return value', function(done) {
+        const config = {
+            inputFile: path.join(__dirname, 'resources', 'aug_codes-01.json'),
+            outputFile: path.join(buildDir, 'genCodes-js-ignore.json'),
+            verbose: true
+        };
+        
+        codeaugmentor_support.execute(config, function(f, a, c){}, function(err) {
+            done(err);
+            printErrors(config);
+            assert.equal(config.allErrors.length, 1);
+            console.log(`Expected ${config.allErrors.length} error(s)`);
+        });
+    });
+});
+
 function printErrors(config) {
     for (ex of config.allErrors) {
         console.log(ex);

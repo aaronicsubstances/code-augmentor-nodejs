@@ -141,7 +141,7 @@ function processAugCode(evalFunction, functionName, augCode, context,
     try {
         let result = evalFunction(functionName, augCode, context);
         if (result === null || typeof result === 'undefined') {
-            return [];
+            return [ convertGenCodeItem(null) ];
         }
         let converted = [];
         if (Array.isArray(result)) {
