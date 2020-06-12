@@ -1,6 +1,6 @@
 # code-augmentor-support
 
-This package enables the use of NodeJS as a scripting platform to generate code to serve the goals of [Code Augmentor](https://github.com/aaronicsubstances/code-augmentor).
+This package enables the use of NodeJS as a scripting platform to generate code to serve the goals of Code Augmentor.
 
 Code Augmentor is a set of libraries, plugins and tools for bringing code generation techniques to every programmer. For a more detailed explanation please visit the main Code Augmentor Github repository [here](https://github.com/aaronicsubstances/code-augmentor).
 
@@ -110,7 +110,7 @@ The library exposes a single function `execute` that has 3 parameters, with the 
 
 The first `config` object argument must have the following properties:
 
-   * `inputFile` - path to the code generation request. Must be the prep file result of running the *code_aug_prepare* Ant task.
+   * `inputFile` - path to the code generation request. Must be the aug code file result of running the *code_aug_prepare* Ant task.
    * `outputFile` - path for writing out code generation response. Will be used as the gen code file input to the *code_aug_complete* Ant task.
    
 Optionally, these properties can be supplied:
@@ -126,7 +126,7 @@ The `evalFunction` is called with every augmenting code object encountered in th
 The third optional argument to `execute` if given, must be a callback function what will be called with a single I/O error if reading from input file or writing to output file fails for some reason. If no error is encountered with reading/writing, it will be called with null. If it is not given or is null, then any error encountered during reading/writing will manifest as an exception to the client.
 
 
-### Properties and Methods of context parameter
+### Properties and Methods of helper context object
 
    * header - JSON object resulting from parsing first line of input file.
    * globalScope - an object/map/dictionary provided for use by clients which remains throughout parsing of entire input file.
@@ -138,8 +138,4 @@ The third optional argument to `execute` if given, must be a callback function w
 
 ## Further Information
 
-Visit this package's Github repository to find out more on 
-
-   * structure of augmenting code object
-   * structure of generated code object
-   * other matters
+For more information on the structure of augmenting code object, generated code object and other considerations, refer to [wiki](https://github.com/aaronicsubstances/code-augmentor/wiki/Documentation-for-Code-Generator-Scripts) in the main Code Augmentor repository.
