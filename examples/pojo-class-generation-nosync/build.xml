@@ -9,13 +9,15 @@
     <property name="genCode.file" location="${build.code-augmentor.dir}/genCodes.json" />
     <property name="generated.dir" location="generated" />
     <property name="script.executable.path" value="node" />
-    <property name="script.main.file" value="codeGenScripts/main.js" />
+    <property name="codeGenScripts.dir" location="codeGenScripts" />
+    <property name="codeGenScripts.main" value="main.js" />
+    <property name="check-exec.test-input" location="test-input.json" />
     
     <!--only needed for get started tutorial-->
     <target name="check-exec" description="verifies script platform is successfully set up">
-        <exec executable="${script.executable.path}" failonerror="true" vmlauncher="false">
-            <arg value="${script.main.file}" />
-            <arg value="test-input.json" />
+        <exec executable="${script.executable.path}" failonerror="true" vmlauncher="false" dir="${codeGenScripts.dir}">
+            <arg value="${codeGenScripts.main}" />
+            <arg value="${check-exec.test-input}" />
             <arg value="${generated.dir}/test-output.json" />
         </exec>
     </target>
@@ -39,8 +41,8 @@
             <inlineGenCodeDirectives value="5&#10;" />
         </code_aug_prepare>
     
-        <exec executable="${script.executable.path}" failonerror="true" vmlauncher="false">
-            <arg value="${script.main.file}" />
+        <exec executable="${script.executable.path}" failonerror="true" vmlauncher="false" dir="${codeGenScripts.dir}">
+            <arg value="${codeGenScripts.main}" />
             <arg value="${augCode.file}" />
             <arg value="${genCode.file}" />
             <arg value="${code-augmentor.verbose}" />
