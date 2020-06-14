@@ -11,13 +11,13 @@ As far as this package and NodeJS developers are concerned, it is enough to thin
 
 `npm install code-augmentor-support`
 
-### Example
+## Example
 
 Below is a main script demonstrating how to set up the library for use with functions defined in two client modules Snippets.js and Worker.js.
 
 It requires input and ouput file command-line arguments, and optional third argument to enable verbose logging.
 
-#### main.js
+### main.js
 
 ```js
 const assert = require('assert').strict;
@@ -59,7 +59,7 @@ code_aug_support.execute(config, callUserFunction, err => {
 });
 ```
 
-#### Snippets.js
+### Snippets.js
 
 ```js
 exports.generateSerialVersionUID = function(augCode, context) {
@@ -67,7 +67,7 @@ exports.generateSerialVersionUID = function(augCode, context) {
 }
 ```
 
-#### Worker.js
+### Worker.js
 
 ```js
 exports.stringify = function(augCode, context) {
@@ -86,7 +86,7 @@ exports.stringify = function(augCode, context) {
 }
 ```
 
-#### test-augCodes.json (sample input file)
+### test-augCodes.json (sample input file)
 
 ```json
 { "genCodeStartDirective": "//:GS:", "genCodeEndDirective": "//:GE:", "embeddedStringDirective": "//:STR:", "embeddedJsonDirective": "//:JSON:", "skipCodeStartDirective": "//:SS:", "skipCodeEndDirective": "//:SE:", "augCodeDirective": "//:AUG_CODE:", "inlineGenCodeDirective": "//:GG:", "nestedLevelStartMarker": "[", "nestedLevelEndMarker": "]" }
@@ -95,7 +95,7 @@ exports.stringify = function(augCode, context) {
 
 ```
 
-#### test-genCodes.json (expected output file)
+### test-genCodes.json (expected output file)
 
 ```json
 {}
@@ -139,3 +139,9 @@ The third optional argument to `execute` if given, must be a callback function w
 ## Further Information
 
 For more information on the structure of augmenting code object, generated code object and other considerations, refer to [wiki](https://github.com/aaronicsubstances/code-augmentor/wiki/Documentation-for-Code-Generator-Scripts) in the main Code Augmentor repository.
+
+## Building and Testing Locally
+
+   * Clone repository locally
+   * Install project dependencies with `npm install`
+   * With all dependencies present locally, test project with `npm test`
