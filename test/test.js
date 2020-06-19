@@ -1,10 +1,14 @@
 const assert = require('assert').strict;
+const fs = require('fs');
 const path = require('path');
 
 const rimraf = require('rimraf');
 const tempDirectory = require('temp-dir');
 
-const codeaugmentor_support = require('../index.js');
+const code_augmentor_support = require('../src/index');
+
+// pre-import for use by scripts.
+const CodeAugmentorFunctions = require('../src/CodeAugmentorFunctions');
 
 let buildDir = path.join(tempDirectory, "code-augmentor-support-nodejs");
 
@@ -15,96 +19,116 @@ let buildDir = path.join(tempDirectory, "code-augmentor-support-nodejs");
  * project.
  */
 
-describe('codeaugmentor_support', function() {
+describe('code_augmentor_support', function() {
     it('should execute basic usage successfully', function(done) {
         // test that output dir can be recreated if absent.
         // do this only here, so subsequent tests verify that
         // existing output dir can be used successfully.
         rimraf.sync(buildDir);
-        const config = {
-            inputFile: path.join(__dirname, 'resources', 'aug_codes-00.json'),
-            outputFile: path.join(buildDir, 'actual_gen_codes.json'),
-            verbose: true
-        };
+        const task = new code_augmentor_support.ProcessCodeTask();
+        task.inputFile = path.join(__dirname, 'resources', 'aug_codes-00.json');
+        task.outputFile = path.join(buildDir, 'actual_gen_codes.json');
         
-        codeaugmentor_support.execute(config, evaler, function(err) {
+        task.execute(evaler, function(err) {
             done(err);
-            printErrors(config);
-            assert.ok(!config.allErrors.length);
+            printErrors(task);
+            assert.ok(!task.allErrors.length);
         });
     });
 });
 
-describe('codeaugmentor_support', function() {
+describe('code_augmentor_support', function() {
     it('should fail due to unset ids', function(done) {
-        const config = {
-            inputFile: path.join(__dirname, 'resources', 'aug_codes-00.json'),
-            outputFile: path.join(buildDir, 'genCodes-js-ignore.json'),
-            verbose: true
-        };
+        const task = new code_augmentor_support.ProcessCodeTask();
+        task.inputFile = path.join(__dirname, 'resources', 'aug_codes-00.json');
+        task.outputFile = path.join(buildDir, 'genCodes-js-ignore.json');
+        task.verbose = true;
         
-        codeaugmentor_support.execute(config, evalerProducingUnsetIds, function(err) {
+        task.execute(evalerProducingUnsetIds, function(err) {
             done(err);
-            printErrors(config);
-            assert.equal(config.allErrors.length, 2);
-            console.log(`Expected ${config.allErrors.length} error(s)`);
+            printErrors(task);
+            assert.equal(task.allErrors.length, 2);
+            console.log(`Expected ${task.allErrors.length} error(s)`);
         });
     });
 });
 
-describe('codeaugmentor_support', function() {
+describe('code_augmentor_support', function() {
     it('should fail due to duplicate ids', function(done) {
-        const config = {
-            inputFile: path.join(__dirname, 'resources', 'aug_codes-01.json'),
-            outputFile: path.join(buildDir, 'genCodes-js-ignore.json'),
-            verbose: true
-        };
+        const task = new code_augmentor_support.ProcessCodeTask();
+        task.inputFile = path.join(__dirname, 'resources', 'aug_codes-01.json');
+        task.outputFile = path.join(buildDir, 'genCodes-js-ignore.json');
+        task.verbose = true;
         
-        codeaugmentor_support.execute(config, evalerProducingDuplicateIds, function(err) {
+        task.execute(evalerProducingDuplicateIds, function(err) {
             done(err);
-            printErrors(config);
-            assert.equal(config.allErrors.length, 1);
-            console.log(`Expected ${config.allErrors.length} error(s)`);
+            printErrors(task);
+            assert.equal(task.allErrors.length, 1);
+            console.log(`Expected ${task.allErrors.length} error(s)`);
         });
     });
 });
 
-describe('codeaugmentor_support', function() {
+describe('code_augmentor_support', function() {
     it('should fail due to absence of production usage context', function(done) {
-        const config = {
-            inputFile: path.join(__dirname, 'resources', 'aug_codes-01.json'),
-            outputFile: path.join(buildDir, 'genCodes-js-ignore.json'),
-            verbose: true
-        };
+        const task = new code_augmentor_support.ProcessCodeTask();
+        task.inputFile = path.join(__dirname, 'resources', 'aug_codes-01.json');
+        task.outputFile = path.join(buildDir, 'genCodes-js-ignore.json');
+        task.verbose = true;
         
-        codeaugmentor_support.execute(config, productionEvaler, function(err) {
+        task.execute(productionEvaler, function(err) {
             done(err);
-            printErrors(config);
-            assert.equal(config.allErrors.length, 2);
-            console.log(`Expected ${config.allErrors.length} error(s)`);
+            printErrors(task);
+            assert.equal(task.allErrors.length, 2);
+            console.log(`Expected ${task.allErrors.length} error(s)`);
         });
     });
 });
 
-describe('codeaugmentor_support', function() {
+describe('code_augmentor_support', function() {
     it('should fail due to missing evaler return value', function(done) {
-        const config = {
-            inputFile: path.join(__dirname, 'resources', 'aug_codes-01.json'),
-            outputFile: path.join(buildDir, 'genCodes-js-ignore.json'),
-            verbose: true
-        };
+        const task = new code_augmentor_support.ProcessCodeTask();
+        task.inputFile = path.join(__dirname, 'resources', 'aug_codes-01.json');
+        task.outputFile = path.join(buildDir, 'genCodes-js-ignore.json');
+        task.verbose = true;
         
-        codeaugmentor_support.execute(config, function(f, a, c){}, function(err) {
+        task.execute(function(f, a, c){}, function(err) {
             done(err);
-            printErrors(config);
-            assert.equal(config.allErrors.length, 1);
-            console.log(`Expected ${config.allErrors.length} error(s)`);
+            printErrors(task);
+            assert.equal(task.allErrors.length, 1);
+            console.log(`Expected ${task.allErrors.length} error(s)`);
         });
     });
 });
 
-function printErrors(config) {
-    for (ex of config.allErrors) {
+describe('code_augmentor_support', function() {
+    it('should pass testing of scope accesses and gen code skipping', function(done) {
+        const task = new code_augmentor_support.ProcessCodeTask();
+        task.inputFile = path.join(__dirname, 'resources', 'aug_codes-02.json');
+        task.outputFile = path.join(buildDir, 'genCodes-js-ignore.json');
+        
+        task.execute(contextScopeMethodAccessEvaler, function(err) {
+            if (err) {
+                done(err);
+                return;
+            }
+            printErrors(task);
+            assert.ok(!task.allErrors.length);
+            fs.readFile(task.outputFile, 'utf8', function(err, data) {
+                done(err)
+                assert.equal(data.replace(/\r\n|\n|\r/g, "\n"), '{}\n' +
+                    '{"fileId":1,"generatedCodes":[' +
+                    '{"skipped":true,"id":1},' +
+                    '{"skipped":true,"id":2},' +
+                    '{"skipped":true,"id":3}]}\n'
+                );
+            });
+        });
+    });
+});
+
+function printErrors(task) {
+    for (ex of task.allErrors) {
         console.log(ex);
         //console.error(ex);
     }
@@ -130,4 +154,16 @@ function evalerProducingDuplicateIds(functionName, augCode, context) {
 
 function productionEvaler(functionName, augCode, context) {
     return eval(functionName + '(augCode, context)');
+}
+
+function contextScopeMethodAccessEvaler(f, a, c) {
+    if (f != "\"testUseOfGetScopeVar\"") {
+        return productionEvaler(f, a, c);
+    }
+    assert.equal(c.getScopeVar("address"), "NewTown");
+    assert.equal(c.getScopeVar("serviceType"), "ICT");
+    assert.equal(c.getScopeVar("allServiceTypes"), "ICT,Agric");
+    assert.equal(c.globalScope["address"], "OldTown");
+    assert.equal(c.getScopeVar("codeAugmentor_indent"), "    ");
+    return c.newSkipGenCode();
 }

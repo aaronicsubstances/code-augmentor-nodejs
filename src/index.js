@@ -1,60 +1,57 @@
+const assert = require('assert').strict;
 const fs = require('fs');
 const readline = require('readline');
+var endOfLine = require('os').EOL;
 const path = require('path');
 
-exports.execute = function(config, evalFunction, cb=null) {
-    // set defaults for logging
-    if (!config.logVerbose) {
-        config.logVerbose = msg => {
-            if (config.verbose) {
-                console.log("[VERBOSE] " + msg);
-            }
-        };
+const ProcessCodeContext = require('./ProcessCodeContext');
+
+// class constructor
+function ProcessCodeTask() {
+    this.verbose = false;
+};
+
+ProcessCodeTask.prototype.logVerbose = function(msg) {
+    if (this.verbose) {
+        console.log("[VERBOSE] " + msg);
     }
-    if (!config.logInfo) {
-        config.logInfo = msg => {
-            console.log("[INFO] " + msg);
-        };
-    }
-    if (!config.logWarn) {
-        config.logWarn = msg => {
-            console.log("[WARN] " + msg);
-        };
-    }
-    config.allErrors = [];
+};
+
+ProcessCodeTask.prototype.logInfo = function(msg) {
+    console.log("[INFO] " + msg);
+};
+
+ProcessCodeTask.prototype.logWarn = function(msg) {
+    console.log("[WARN] " + msg);
+};
+
+ProcessCodeTask.prototype.execute = function(evalFunction, cb=null) {
+    // validate
+    assert.ok(this.inputFile, "inputFile property is not set");
+    assert.ok(this.outputFile, "outputFile property is not set");
+    assert.ok(evalFunction);
+
+    this.allErrors = [];
         
     // ensure dir exists for outputFile.
-    const outputDir = path.dirname(config.outputFile)
+    const outputDir = path.dirname(this.outputFile)
     if (outputDir) {
         fs.mkdirSync(outputDir, {
             recursive: true // also ensures no error is thrown if dir already exists
         });
     }
 
-    const context = {
-        globalScope: {},
-        newGenCode: function() {
-            return {
-                id: 0,
-                contentParts: []   
-            }
-        },
-        newContent: function(content, exactMatch=false) {
-            return {
-                content, exactMatch
-            };
-        }
-    };
+    const context = new ProcessCodeContext();
 
     // begin serialize by writing header to output 
-    const codeGenResponse = fs.createWriteStream(config.outputFile);
-    codeGenResponse.write(JSON.stringify({}, '') + '\n');
+    const codeGenResponse = fs.createWriteStream(this.outputFile);
+    codeGenResponse.write(JSON.stringify({}, '') + endOfLine);
 
     // begin reading input file.
     try {
         let headerSeen = false;
         const rl = readline.createInterface({
-            input: fs.createReadStream(config.inputFile),
+            input: fs.createReadStream(this.inputFile),
             crlfDelay: Infinity
         });
         rl.on('line', (line) => {
@@ -72,7 +69,7 @@ exports.execute = function(config, evalFunction, cb=null) {
                 fileAugCodes.relativePath);
             context.fileAugCodes = fileAugCodes;
             context.fileScope = {};
-            config.logVerbose(`Processing ${context.srcFile}`);
+            this.logVerbose(`Processing ${context.srcFile}`);
 
             // fetch arguments, and parse any json argument found.
             for (augCode of fileAugCodes.augmentingCodes) {
@@ -94,7 +91,7 @@ exports.execute = function(config, evalFunction, cb=null) {
                 fileId: fileAugCodes.fileId,
                 generatedCodes: []
             };
-            const beginErrorCount = config.allErrors.length;
+            const beginErrorCount = this.allErrors.length;
             for (let i = 0; i < fileAugCodes.augmentingCodes.length; i++) {
                 const augCode = fileAugCodes.augmentingCodes[i];
                 if (augCode.processed) {
@@ -102,25 +99,26 @@ exports.execute = function(config, evalFunction, cb=null) {
                 }
 
                 context.augCodeIndex = i;
-                const functionName = augCode.blocks[0].content.trim();
-                const genCodes = processAugCode(evalFunction, functionName,
-                    augCode, context, config.allErrors);
+                const functionName = retrieveFunctionName(augCode);
+                const genCodes = this.processAugCode(evalFunction, functionName,
+                    augCode, context);
                 for (genCode of genCodes) {
                     fileGenCodes.generatedCodes.push(genCode);
                 }
             }
                         
-            validateGeneratedCodeIds(fileGenCodes.generatedCodes, context, config.allErrors);
+            validateGeneratedCodeIds(fileGenCodes.generatedCodes, context,
+                this.allErrors);
             
-            if (config.allErrors.length > beginErrorCount) {
-                config.logWarn((config.allErrors.length - beginErrorCount) +
+            if (this.allErrors.length > beginErrorCount) {
+                this.logWarn((this.allErrors.length - beginErrorCount) +
                     " error(s) encountered in " + context.srcFile);
             }            
 
-            if (config.allErrors.length == 0) {
-                codeGenResponse.write(JSON.stringify(fileGenCodes, '') + '\n');
+            if (this.allErrors.length == 0) {
+                codeGenResponse.write(JSON.stringify(fileGenCodes, '') + endOfLine);
             }
-            config.logInfo("Done processing " + context.srcFile);
+            this.logInfo("Done processing " + context.srcFile);
         }).on('close', () => {
             codeGenResponse.end();
             cb && cb();
@@ -136,8 +134,12 @@ exports.execute = function(config, evalFunction, cb=null) {
     }
 };
 
-function processAugCode(evalFunction, functionName, augCode, context,
-        allErrors) {
+function retrieveFunctionName(augCode) {
+    let functionName = augCode.blocks[0].content.trim();
+    return functionName;
+}
+
+ProcessCodeTask.prototype.processAugCode = function(evalFunction, functionName, augCode, context) {
     try {
         let result = evalFunction(functionName, augCode, context);
         if (result === null || typeof result === 'undefined') {
@@ -167,7 +169,7 @@ function processAugCode(evalFunction, functionName, augCode, context,
         return converted;
     }
     catch (excObj) {
-        createException(context, null, excObj, allErrors);
+        createException(context, null, excObj, this.allErrors);
         return [];
     }
 }
@@ -176,7 +178,7 @@ function convertGenCodeItem(item) {
     if (item === null || typeof item === 'undefined') {
         return { id: 0 };
     }
-    if (typeof item.contentParts !== 'undefined') {
+    if (typeof item.skipped !== 'undefined' || typeof item.contentParts !== 'undefined') {
         // assume it is GeneratedCode instance and ensure
         // existence of id field.
         if (!item.id) {
@@ -234,3 +236,5 @@ function createException(context, message, evalEx, allErrors) {
     let exception = `in ${context.srcFile}${lineMessage}: ${message}${stackTrace}`;
     allErrors.push(exception);
 }
+
+exports.ProcessCodeTask = ProcessCodeTask;
