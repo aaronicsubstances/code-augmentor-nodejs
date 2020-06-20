@@ -238,3 +238,5 @@ function createException(context, message, evalEx, allErrors) {
 }
 
 exports.ProcessCodeTask = ProcessCodeTask;
+exports.CodeAugmentorFunctions = require('./CodeAugmentorFunctions');
+exports.ProcessCodeContext = ProcessCodeContext;

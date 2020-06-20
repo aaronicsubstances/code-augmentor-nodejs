@@ -16,17 +16,19 @@ As far as this package and NodeJS developers are concerned, it is enough to thin
 Below is a main script demonstrating how to set up the library for use with functions defined in two client modules Snippets.js and Worker.js.
 
 It requires input and ouput file command-line arguments, and optional third argument to enable verbose logging.
+```
+node main.js test-augCodes.json actual.json
+```
 
 ### main.js
 
 ```js
-const assert = require('assert').strict;
-
 const code_aug_support = require('code-augmentor-support');
+const CodeAugmentorFunctions = code_aug_support.CodeAugmentorFunctions;
 const Snippets = require('./Snippets.js');
 const Worker = require('./Worker.js');
 
-const FUNCTION_NAME_REGEX = /^((Snippets|Worker)\.)[a-zA-Z]\w*$/;
+const FUNCTION_NAME_REGEX = /^(((.*CodeAugmentorFunctions)|Snippets|Worker)\.)[a-zA-Z]\w*$/;
 function callUserFunction(functionName, augCode, context) {
     // validate name.
     if (!FUNCTION_NAME_REGEX.test(functionName)) {
@@ -38,20 +40,17 @@ function callUserFunction(functionName, augCode, context) {
     return result;
 }
 
-const config = {
-    inputFile: process.argv[2],
-    outputFile: process.argv[3],
-    verbose: !!process.argv[4]
-};
-assert.ok(config.inputFile);
-assert.ok(config.outputFile);
-code_aug_support.execute(config, callUserFunction, err => {
+const task = new code_aug_support.ProcessCodeTask();
+task.inputFile = process.argv[2];
+task.outputFile = process.argv[3];
+task.verbose = !!process.argv[4];
+task.execute(callUserFunction, err => {
     if (err) {
         throw err;
     }
-    if (config.allErrors.length) {
-        console.error(config.allErrors.length + " error(s) found.\n");
-        for (errMsg of config.allErrors) {
+    if (task.allErrors.length) {
+        console.error(task.allErrors.length + " error(s) found.\n");
+        for (errMsg of task.allErrors) {
             console.error(errMsg);
         }
         process.exit(1);
@@ -95,7 +94,7 @@ exports.stringify = function(augCode, context) {
 
 ```
 
-### test-genCodes.json (expected output file)
+### expected.json (expected output file)
 
 ```json
 {}
@@ -106,35 +105,49 @@ exports.stringify = function(augCode, context) {
 
 ## Usage
 
-The library exposes a single function `execute` that has 3 parameters, with the first 2 being required. The first is an object for configuring the function's operation, the second is a function for evaluating code generation requests and producing generated code snippets, the third is optional callback to indicate end of the asynchronous operation of `execute` as well as any I/O error encountered.
+The library's functionality is contained in the method `execute` of the class `ProcessCodeTask` in the main module of this package. The `execute` method takes a function object used for evaluating code generation requests and producing generated code snippets.
 
-The first `config` object argument must have the following properties:
+Instances of `ProcessCodeTask` have the following properties:
 
    * `inputFile` - path to the code generation request. Must be the aug code file result of running the *code_aug_prepare* Ant task.
    * `outputFile` - path for writing out code generation response. Will be used as the gen code file input to the *code_aug_complete* Ant task.
+   * `verbose` - boolean property which can be used with default verbose logging mechansim to enable printing of verbose mesages to standard output.
+   * `allErrors` - array which contains any errors encountered during execution.
    
-Optionally, these properties can be supplied:
-   * `logVerbose`, `logInfo`, `logWarn` - functions which are called with a single message argument when a verbose message, normal message, or warning message is issued. By default all normal and warning messages are printed to standard output, and verbose messages are ignored.
-   * `verbose` - optional boolean property which can be used with default verbose logging mechansim to enable printing of verbose mesages to standard output. This property is ignored if a custom `logVerbose` function is supplied.
+These methods can be overriden in a subclass:
+   * `logVerbose`, `logInfo`, `logWarn` - methods which are called with a format string, *args, and **kwargs, when a verbose message, normal message, or warning message is issued. By default all normal and warning messages are printed to standard output, and verbose messages are ignored.
 
-Lastly, an `allErrors` property is set on the config object as an array to return any expected non I/O error encountered to the client.
-
-The second `evalFunction` function argument is called with 3 arguments. The first is name of a function to invoke in the current NodeJS scope, and the remaining two are an augmenting code object and a helper `context` object. These remaining two arguments are the arguments passed to the function to be invoked. 
+The `evalFunction` function argument of the `execute` method is called with 3 arguments. The first is name of a function to invoke in the current NodeJS scope, and the remaining two are an augmenting code object and a helper instance of the `ProcessCodeContext` class exported by main module of this package. These remaining two arguments are the arguments passed to the function to be invoked. 
 
 The `evalFunction` is called with every augmenting code object encountered in the input file. It is expected to in turn call client-defined functions dynamically and receive from them a correponding generated code object to be written to the output file. As a convenience, it can return strings, content parts, and arrays of generated code objects.
 
-The third optional argument to `execute` if given, must be a callback function what will be called with a single I/O error if reading from input file or writing to output file fails for some reason. If no error is encountered with reading/writing, it will be called with null. If it is not given or is null, then any error encountered during reading/writing will manifest as an exception to the client.
+The second optional argument to `execute` if given, must be a callback function what will be called with a single I/O error if reading from input file or writing to output file fails for some reason. If no error is encountered with reading/writing, it will be called with null. If it is not given or is null, then any error encountered during reading/writing will manifest as an exception to the client.
 
 
-### Properties and Methods of helper context object
+### Properties and Methods of `ProcessCodeContext` instances
 
-   * header - JSON object resulting from parsing first line of input file.
-   * globalScope - an object/map/dictionary provided for use by clients which remains throughout parsing of entire input file.
-   * fileScope - an object/map/dictionary provided for use by clients which is reset at the start of processing every line of input file.
-   * fileAugCodes - JSON object resulting of parsing current line of input file other than first line.
-   * augCodeIndex - index of `augCode` parameter in `fileAugCodes.augmentingCodes` array
-   * newGenCode() - convenience function available to clients for creating a generated code object with empty `contentParts` array property.
-   * newContent(content, exactMatch=false) - convenience function available to clients for creating a new content part object with properties set with arguments supplied to the function.
+   * *header* - JSON object resulting from parsing first line of input file.
+   * *globalScope* - an object/map/dictionary provided for use by clients which remains throughout parsing of entire input file.
+   * *fileScope* - an object/map/dictionary provided for use by clients which is reset at the start of processing every line of input file.
+   * *fileAugCodes* - JSON object resulting of parsing current line of input file other than first line.
+   * *augCodeIndex* - index of `augCode` parameter in `fileAugCodes.augmentingCodes` array
+   * *newGenCode()* - convenience function available to clients for creating a generated code object with empty `contentParts` array property.
+   * *newContent(content, exactMatch=false)* - convenience function available to clients for creating a new content part object with properties set with arguments supplied to the function.
+   * *newSkipGenCode()* - convenience method to create a generated code object indicating skipping of aug code section. Will have null content parts.
+   * *getScopeVar(name)* - gets a variable from fileScope array with given name, or from globalScope array if not found in fileScope.
+
+### Reserved 'CodeAugmentor' Prefix
+
+CodeAugmentor supplies utility functions and variables by reserving the **CodeAugmentor** prefix. As such scripts should avoid naming aug code processing functions and variables in fileScope/globalScope with that prefix.
+
+The following variables are provided by default in context globalScope:
+
+   * *codeAugmentor_indent* - set with value of four spaces.
+
+The following functions are provided by **CodeAugmentorFunctions** module exported by main module of this package for use to process aug codes:
+
+   * *CodeAugmentorFunctions.setScopeVar* - requires each embedded data in augmenting code section to be a JSON object. For each such object, every property of the object is used to set a variable in context fileScope whose value is the value of the property in the JSON object.
+   * *CodeAugmentorFunctions.setGlobalScopeVar* - same as setScopeVar, but rather sets variables in context globalScope.
 
 ## Further Information
 

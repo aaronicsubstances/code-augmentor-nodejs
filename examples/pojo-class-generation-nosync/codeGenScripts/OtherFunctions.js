@@ -5,10 +5,6 @@ exports.capitalize = function(s) {
     return s;
 }
 
-exports.defaultIndent = function(){
-    return '    '
-}
-
 exports.isUpperCase = function(c) {
     return c == c.toUpperCase();
 }

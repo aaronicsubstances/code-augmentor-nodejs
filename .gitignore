@@ -106,3 +106,4 @@ dist
 
 /examples/**/tempSrc/
 /examples/**/generated/
+/examples/**/package-lock.json
